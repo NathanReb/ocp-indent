@@ -344,8 +344,8 @@ let save t file =
     output_char oc '\n';
     true
   with Sys_error _ ->
-    Printf.eprintf
-      "ocp-indent warning: could not open %S for writing configuration.\n%!"
+    IndentWarning.emit
+      "could not open %S for writing configuration."
       file;
     false
 
@@ -396,13 +396,13 @@ let load ?(indent=default) file =
     t, !exts, !dynlink
   with
   | Sys_error _ ->
-      Printf.eprintf
-        "ocp-indent warning: could not open %S for reading configuration.\n%!"
+      IndentWarning.emit
+        "could not open %S for reading configuration."
         file;
       indent, [], []
   | Invalid_argument err ->
-      Printf.eprintf
-        "ocp-indent warning: error in configuration file %S:\n%s\n%!"
+      IndentWarning.emit
+        "error in configuration file %S:\n%s"
         file err;
       default, [], []
 
@@ -450,7 +450,7 @@ let local_default ?(path=Sys.getcwd()) () =
     with
     | Not_found -> conf
     | Invalid_argument _ ->
-        prerr_endline "Warning: invalid $OCP_INDENT_CONFIG";
+        IndentWarning.emit "invalid $OCP_INDENT_CONFIG";
         conf
   in
   conf, syn, dlink

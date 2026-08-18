@@ -32,6 +32,7 @@ type t = {
   indent_printer: out_channel -> unit IndentPrinter.output_kind;
   syntax_exts: string list;
   dynlink : [`Mod of string | `Pkg of string] list;
+  strict : bool;
 }
 
 let options =
@@ -135,9 +136,14 @@ let options =
     in
     Term.(const f $ arg)
   in
+  let strict =
+    let doc = "Make warnings fatal and parsing stricter." in
+    Arg.(value & flag & info ["strict"] ~doc)
+  in
   let build_t
       indent_config debug inplace indent_empty lines
       numeric file_out print_config syntax_exts load_pkgs load_mods files
+      strict
     =
     if inplace && (file_out <> None || numeric)
     then `Error (false, "incompatible options used with --inplace")
@@ -181,7 +187,8 @@ let options =
                      (fun s () -> output_string oc s)));
           syntax_exts;
           dynlink = (List.map (fun s -> `Mod s) load_mods) @
-                    (List.map (fun s -> `Pkg s) load_pkgs)
+                    (List.map (fun s -> `Pkg s) load_pkgs);
+          strict;
         },
         files
       )
@@ -190,7 +197,7 @@ let options =
     Term.(const build_t
           $ config $ debug $ inplace $ indent_empty $ lines $ numeric
           $ output $ print_config $ syntax
-          $ load_pkgs $ load_mods $ files)
+          $ load_pkgs $ load_mods $ files $ strict)
   in
   Term.ret t
 

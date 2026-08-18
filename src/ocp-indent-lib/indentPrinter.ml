@@ -98,9 +98,8 @@ let print_indent output line blank ?(kind=Normal) block usr =
   else (
     if !warn_tabs && String.contains blank '\t' then (
       warn_tabs := false;
-      prerr_endline
-        "Warning: ocp-indent input contains indentation by tabs, \
-         partial indent will be unreliable."
+      IndentWarning.emit
+        "input contains indentation by tabs, partial indent will be unreliable."
     );
     match output.kind with
     | Numeric _ -> usr

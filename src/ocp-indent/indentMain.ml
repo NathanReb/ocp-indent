@@ -42,7 +42,7 @@ let config_syntaxes syntaxes =
       try
         Approx_lexer.enable_extension stx
       with IndentExtend.Syntax_not_found name ->
-        Format.eprintf "Warning: unknown syntax extension %S@." name)
+        IndentWarning.emit "unknown syntax extension %S" name)
     syntaxes
 
 let indent_file args = function
@@ -91,10 +91,42 @@ let indent_file args = function
       with e ->
         close_in ic; raise e
 
+let handle_errors f =
+  try f () with
+  | IndentWarning.Fatal msg ->
+      Printf.eprintf "ocp-indent error: %s\n%!" msg;
+      exit Cmdliner.Cmd.Exit.some_error
+  | Approx_lexer.Error {error; start_pos; end_pos} ->
+      let msg = Approx_lexer.error_msg error in
+      (if Int.equal start_pos.pos_lnum end_pos.pos_lnum then
+         let start_char, end_char =
+           start_pos.pos_cnum - start_pos.pos_bol,
+           end_pos.pos_cnum - end_pos.pos_bol
+         in
+         Format.eprintf
+           "ocp-indent parsing error:@ \
+            line %d, %d-%d:@ %s\n%!"
+           start_pos.pos_lnum start_char end_char msg
+       else
+         Format.eprintf
+           "ocp-indent parsing error:@ \
+            line %d-%d:@ %s\n%!"
+           start_pos.pos_lnum end_pos.pos_lnum msg);
+      exit Cmdliner.Cmd.Exit.some_error
+  | e ->
+      let bt = Printexc.get_raw_backtrace () in
+      Printexc.raise_with_backtrace e bt
+
 let main =
   Cmdliner.Cmd.v Args.info
     Cmdliner.Term.(
-      const (fun (args,files) -> List.iter (indent_file args) files)
+      const
+        (fun (args,files) ->
+           IndentWarning.set_strict_mode args.Args.strict;
+           Approx_lexer.set_strict_mode args.Args.strict;
+           List.iter
+             (fun file -> handle_errors (fun () -> indent_file args file))
+             files)
       $ Args.options
     )
 

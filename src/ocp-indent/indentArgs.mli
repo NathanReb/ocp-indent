@@ -29,6 +29,7 @@ type t = private {
   indent_printer: out_channel -> unit IndentPrinter.output_kind;
   syntax_exts: string list;
   dynlink : [`Pkg of string | `Mod of string ] list;
+  strict : bool;
 }
 
 val options: (t * input list) Cmdliner.Term.t
