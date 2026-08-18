@@ -19,15 +19,14 @@ and exits with non zero status
   > unknown_key=foo
   > EOF
 
-  $ ocp-indent test.ml
-  ocp-indent warning: error in configuration file "./.ocp-indent":
+  $ ocp-indent test.ml 2>&1 | sed -e 's/".*ocp-indent"/<dot-ocp-indent>/' -
+  ocp-indent warning: error in configuration file <dot-ocp-indent>:
   unknown configuration key "unknown_key"
   let x = 0
 
-  $ ocp-indent --strict test.ml
-  ocp-indent error: error in configuration file "./.ocp-indent":
+  $ ocp-indent --strict test.ml 2>&1 | sed -e 's/".*ocp-indent"/<dot-ocp-indent>/' -
+  ocp-indent error: error in configuration file <dot-ocp-indent>:
   unknown configuration key "unknown_key"
-  [123]
 
   $ rm .ocp-indent
 
