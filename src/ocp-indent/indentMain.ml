@@ -16,7 +16,7 @@
 
 module Args = IndentArgs
 
-let indent_channel ic args config out perm =
+let indent_channel ~filename ic args config out perm =
   let oc, need_close = match out with
     | None | Some "-" -> stdout, false
     | Some file -> open_out_gen [Open_wronly; Open_creat; Open_trunc; Open_binary] perm file, true
@@ -31,7 +31,7 @@ let indent_channel ic args config out perm =
     kind = args.Args.indent_printer oc;
   }
   in
-  let stream = Nstream.of_channel ic in
+  let stream = Nstream.of_channel ~filename ic in
   IndentPrinter.proceed output stream IndentBlock.empty ();
   flush oc;
   if need_close then close_out oc
@@ -46,7 +46,7 @@ let check_channel ~filename ic (args : Args.t) config =
     ; kind = Print (fun _ () -> ())
     }
   in
-  let stream = Nstream.of_channel ic in
+  let stream = Nstream.of_channel ~filename ic in
   let ret = IndentPrinter.check output stream IndentBlock.empty in
   if not ret then
     Printf.eprintf "%s\n" filename;
@@ -76,7 +76,7 @@ let indent_file args = function
       if args.Args.check then
         check_channel ~filename ic args config
       else begin
-        indent_channel ic args config args.Args.file_out 0o644; (* won't be used *)
+        indent_channel ~filename ic args config args.Args.file_out 0o644;
         true
       end
   | Args.File path ->
@@ -109,7 +109,7 @@ let indent_file args = function
             args.Args.file_out, 0o644, None
         in
         try
-          indent_channel ic args config out perm;
+          indent_channel ~filename:path ic args config out perm;
           (match out, need_move with
            | Some src, Some dst -> Sys.rename src dst
            | _, _ -> ());
@@ -131,13 +131,13 @@ let handle_errors f =
          in
          Format.eprintf
            "ocp-indent parsing error:@ \
-            line %d, %d-%d:@ %s\n%!"
-           start_pos.pos_lnum start_char end_char msg
+            File %s, line %d, %d-%d:@ %s\n%!"
+           start_pos.pos_fname start_pos.pos_lnum start_char end_char msg
        else
          Format.eprintf
            "ocp-indent parsing error:@ \
-            line %d-%d:@ %s\n%!"
-           start_pos.pos_lnum end_pos.pos_lnum msg);
+            File %s, line %d-%d:@ %s\n%!"
+           start_pos.pos_fname start_pos.pos_lnum end_pos.pos_lnum msg);
       exit Cmdliner.Cmd.Exit.some_error
   | e ->
       let bt = Printexc.get_raw_backtrace () in

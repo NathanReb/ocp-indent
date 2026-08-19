@@ -21,6 +21,8 @@
 + Add `--check` flag and corresponding check mode which does not print
   indented version but instead succeed if the input is already correctly
   indented and fails otherwise. (#357, @NathanReb)
++ Add `?filename` argument to `Nstream` functions to allow properly
+  setting the filename for parsing errors. (#357, @NathanReb)
 
 ## 1.9.0
 
