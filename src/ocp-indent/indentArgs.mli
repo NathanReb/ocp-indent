@@ -30,6 +30,7 @@ type t = private {
   syntax_exts: string list;
   dynlink : [`Pkg of string | `Mod of string ] list;
   strict : bool;
+  check: bool;
 }
 
 val options: (t * input list) Cmdliner.Term.t

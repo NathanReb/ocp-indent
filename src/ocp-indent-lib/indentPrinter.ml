@@ -76,9 +76,11 @@ type indentKind = Normal
 
 let warn_tabs = ref true
 
+exception Check_failure
+
 (* must be called exactly once for each line, in order *)
 (* let line_debug_counter = ref 0 *)
-let print_indent output line blank ?(kind=Normal) block usr =
+let print_indent ?(check=false) output line blank ?(kind=Normal) block usr =
   (* assert (incr line_debug_counter; line = !line_debug_counter); *)
   if output.in_lines line then
     let indent =
@@ -91,6 +93,8 @@ let print_indent output line blank ?(kind=Normal) block usr =
           IndentBlock.indent block + IndentBlock.padding block
       | Fixed n -> n
     in
+    if check && not (Int.equal (IndentBlock.original_column block) indent) then
+      raise Check_failure;
     match output.kind with
     | Numeric pr -> pr indent usr
     | Print pr -> pr (String.make indent ' ') usr
@@ -149,7 +153,7 @@ let star_aligned_comment ~strict_comments ~orig_start_column tok _first_line
              without_closing_line)
   | _ -> false
 
-let print_token output block tok usr =
+let print_token ~check output block tok usr =
   let orig_start_column = IndentBlock.original_column block in
   let start_column = IndentBlock.offset block in
   (* Handle multi-line tokens (strings, comments) *)
@@ -214,6 +218,8 @@ let print_token output block tok usr =
                     item_cont
               | _ -> start_column + max orig_offset pad, item_cont
           in
+          if check && not (Int.equal orig_line_indent indent_value) then
+            raise Check_failure;
           usr
           |> print_indent output line "" ~kind:(Fixed indent_value) block
           |> pr_string output block text
@@ -262,7 +268,7 @@ let print_token output block tok usr =
 
 (* [block] is the current indentation block
    [stream] is the token stream *)
-let rec loop output block stream usr =
+let rec loop ?(check=false) output block stream usr =
   match Nstream.next stream with
   | None -> usr (* End of file *)
   | Some (t, stream) ->
@@ -314,14 +320,18 @@ let rec loop output block stream usr =
             | _ -> Normal
           in
           usr
-          |> print_indent output line blank ~kind block
+          |> print_indent ~check output line blank ~kind block
         else
           usr
           |> pr_whitespace output block blank
       in
-      let usr = usr |> print_token output block t in
+      let usr = usr |> print_token ~check output block t in
       match t.token with EOF -> usr
-                       | _ -> usr |> loop output block stream
+                       | _ -> usr |> loop ~check output block stream
 
 let proceed output stream block usr =
   usr |> loop output block stream
+
+let check output stream block =
+  let output = { output with kind = Print (fun _ () -> ()) } in
+  try loop ~check:true output block stream (); true with Check_failure -> false

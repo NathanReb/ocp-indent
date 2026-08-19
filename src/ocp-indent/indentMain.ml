@@ -36,6 +36,22 @@ let indent_channel ic args config out perm =
   flush oc;
   if need_close then close_out oc
 
+let check_channel ~filename ic (args : Args.t) config =
+  let output : unit IndentPrinter.output =
+    { debug = args.debug
+    ; config
+    ; in_lines = args.in_lines
+    ; indent_empty = args.indent_empty
+    ; adaptive = true
+    ; kind = Print (fun _ () -> ())
+    }
+  in
+  let stream = Nstream.of_channel ic in
+  let ret = IndentPrinter.check output stream IndentBlock.empty in
+  if not ret then
+    Printf.eprintf "%s\n" filename;
+  ret
+
 let config_syntaxes syntaxes =
   Approx_lexer.disable_extensions ();
   List.iter (fun stx ->
@@ -47,6 +63,7 @@ let config_syntaxes syntaxes =
 
 let indent_file args = function
   | Args.InChannel ic ->
+      let filename = "<stdin>" in
       let config, syntaxes, dlink = IndentConfig.local_default () in
       IndentLoader.load ~debug:args.Args.debug (dlink @ args.Args.dynlink);
       config_syntaxes (syntaxes @ args.Args.syntax_exts);
@@ -56,7 +73,12 @@ let indent_file args = function
           config
           args.Args.indent_config
       in
-      indent_channel ic args config args.Args.file_out 0o644 (* won't be used *)
+      if args.Args.check then
+        check_channel ~filename ic args config
+      else begin
+        indent_channel ic args config args.Args.file_out 0o644; (* won't be used *)
+        true
+      end
   | Args.File path ->
       let config, syntaxes, dlink =
         IndentConfig.local_default ~path:(Filename.dirname path) ()
@@ -69,27 +91,31 @@ let indent_file args = function
           config
           args.Args.indent_config
       in
-      let out, perm, need_move =
-        if args.Args.inplace then
-          let tmp_file = path ^ ".ocp-indent-tmp" in
-          let rec get_true_file path =
-            let open Unix in
-            match lstat path with
-            | { st_kind = S_REG ; st_perm } -> Some tmp_file, st_perm, Some path
-            | { st_kind = S_LNK ; } -> get_true_file @@ readlink path
-            | { st_kind = _ ; } -> failwith "invalid file type"
-          in get_true_file path
-        else
-          args.Args.file_out, 0o644, None
-      in
       let ic = open_in_bin path in
-      try
-        indent_channel ic args config out perm;
-        match out, need_move with
-        | Some src, Some dst -> Sys.rename src dst
-        | _, _ -> ()
-      with e ->
-        close_in ic; raise e
+      if args.Args.check then
+        check_channel ~filename:path ic args config
+      else
+        let out, perm, need_move =
+          if args.Args.inplace then
+            let tmp_file = path ^ ".ocp-indent-tmp" in
+            let rec get_true_file path =
+              let open Unix in
+              match lstat path with
+              | { st_kind = S_REG ; st_perm } -> Some tmp_file, st_perm, Some path
+              | { st_kind = S_LNK ; } -> get_true_file @@ readlink path
+              | { st_kind = _ ; } -> failwith "invalid file type"
+            in get_true_file path
+          else
+            args.Args.file_out, 0o644, None
+        in
+        try
+          indent_channel ic args config out perm;
+          (match out, need_move with
+           | Some src, Some dst -> Sys.rename src dst
+           | _, _ -> ());
+          true
+        with e ->
+          close_in ic; raise e
 
 let handle_errors f =
   try f () with
@@ -124,14 +150,19 @@ let main =
         (fun (args,files) ->
            IndentWarning.set_strict_mode args.Args.strict;
            Approx_lexer.set_strict_mode args.Args.strict;
-           List.iter
-             (fun file -> handle_errors (fun () -> indent_file args file))
-             files)
+           let successes =
+             List.map
+               (fun file -> handle_errors (fun () -> indent_file args file))
+               files
+           in
+           if List.for_all (fun x -> x) successes then
+             Cmdliner.Cmd.Exit.ok
+           else
+             Cmdliner.Cmd.Exit.some_error
+        )
       $ Args.options
     )
 
 
-let _ =
-  match Cmdliner.Cmd.eval_value main with
-  | Error _ -> exit 1
-  | _ -> exit 0
+let () =
+  exit (Cmdliner.Cmd.eval' main)
