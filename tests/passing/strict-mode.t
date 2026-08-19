@@ -67,7 +67,7 @@ errors:
   let x = f ~if:0
 
   $ ocp-indent --strict test.ml
-  ocp-indent parsing error: line 1, 10-14:
+  ocp-indent parsing error: File test.ml, line 1, 10-14:
   Invalid tuple or argument label: if
   let x = f
   [123]
@@ -82,7 +82,7 @@ errors:
   let x = "\e"
 
   $ ocp-indent --strict test.ml
-  ocp-indent parsing error: line 1, 9-11:
+  ocp-indent parsing error: File test.ml, line 1, 9-11:
   Illegal character escape: \e
   let x
   [123]

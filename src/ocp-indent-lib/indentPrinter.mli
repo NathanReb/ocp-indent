@@ -45,3 +45,7 @@ type 'a output = {
 val std_output : unit output
 
 val proceed : 'a output -> Nstream.t -> IndentBlock.t -> 'a -> 'a
+
+(* [check] does not print out but instead returns [true] if the input was
+   correctly indented and [false] otherwise. *)
+val check : _ output -> Nstream.t -> IndentBlock.t -> bool
