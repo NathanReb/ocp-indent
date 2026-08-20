@@ -61,6 +61,17 @@ Automatic indentation as you type should take place, depending on your
 configuration. Use `==` to reindent the current line, and `=G` to reindent until
 the end of buffer.
 
+### NeoVim
+
+Use the following command to tell NeoVim to `ocp-indent` to indent OCaml code:
+
+```bash
+echo 'vim.opt.rtp:prepend("'"$(opam var ocp-indent:shar)"'/vim")' >> ~/.config/nvim/init.lua
+```
+Automatic indentation as you type should take place, depending on your
+configuration. Use `==` to reindent the current line, and `=G` to reindent until
+the end of buffer.
+
 ### Other editors
 
 As `ocp-indent` is a command-line tool, you can easily integrate it with other editors.
