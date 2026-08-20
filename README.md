@@ -66,7 +66,7 @@ the end of buffer.
 Use the following command to tell NeoVim to `ocp-indent` to indent OCaml code:
 
 ```bash
-echo 'vim.opt.rtp:prepend("'"$(opam var ocp-indent:shar)"'/vim")' >> ~/.config/nvim/init.lua
+echo 'vim.opt.rtp:prepend("'"$(opam var ocp-indent:share)"'/vim")' >> ~/.config/nvim/init.lua
 ```
 Automatic indentation as you type should take place, depending on your
 configuration. Use `==` to reindent the current line, and `=G` to reindent until
