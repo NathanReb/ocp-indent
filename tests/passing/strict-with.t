@@ -95,8 +95,8 @@ It should also work when defining a type alias (atm, it doesnt):
 
   $ ocp-indent --config strict_with=always test.ml
   type s = t =
-    | A
-    | B
+  | A
+  | B
 
 Same applies to extensible variant types:
 

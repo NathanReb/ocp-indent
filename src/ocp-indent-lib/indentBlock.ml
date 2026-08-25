@@ -872,6 +872,16 @@ let rec update_path config block stream tok =
          extend (KExpr target_prio) align path
      | None -> make_infix tok block.path)
   in
+  (* Helper function for replacing [X] with [KBody(X)] when reaching [=]
+     or [+=]. *)
+  let replace_with_body ~kind ~indent hd tl =
+    if starts_line then
+      let hd' = {hd with indent = hd.indent + indent; pad = 0} in
+      replace (KBody kind) L ~pad:0 (hd'::tl)
+    else
+      let hd' = {hd with indent = hd.column} in
+      replace (KBody kind) T ~pad:indent (hd'::tl)
+  in
   let (>>!) opt f = match opt with Some x -> x | None -> f () in
   handle_dotted block tok >>! fun () ->
   match tok.token with
@@ -1371,7 +1381,12 @@ let rec update_path config block stream tok =
               | {kind = KWith (KType|KModule)
                       | KAnd KWith (KType|KModule)}::_ ->
                   find_parent p
-              | _ -> replace (KBody KType) L ~pad:config.i_type path)
+              | _ ->
+                  match next_token stream with
+                  | Some BAR when config.i_strict_with = Always ->
+                      replace (KBody KType) L ~pad:config.i_with path
+                  | _ ->
+                      replace (KBody KType) L ~pad:config.i_type path)
          | {kind=KBrace}::_ ->
              (match
                 unwind_while (fun kind -> kind = KColon || prio kind > prio_semi)
@@ -1395,7 +1410,7 @@ let rec update_path config block stream tok =
                | _, (KType | KBody KType) -> config.i_type
                | _ -> config.i_base
              in
-             let body, h, p =
+             let kind, h, p =
                match kind, p with
                | ( (KType | KExternal | KClass)
                  , ({kind = (KLet | KLetIn) as k; _} as h')::p') ->
@@ -1408,16 +1423,11 @@ let rec update_path config block stream tok =
                       rather than as the body of type/external/class to
                       avoid unaesthetic over indentation while preserving
                       decent indentation of what comes between [let] and [=]. *)
-                   KBody k, h', p'
+                   k, h', p'
                | _ ->
-                   KBody kind, h, p
+                   kind, h, p
              in
-             if starts_line then
-               let h = {h with indent = h.indent + indent; pad = 0} in
-               replace body L ~pad:0 (h::p)
-             else
-               let h = {h with indent = h.column} in
-               replace body T ~pad:indent (h::p))
+             replace_with_body ~kind ~indent h p)
       in
       find_parent block.path
 
@@ -1431,20 +1441,15 @@ let rec update_path config block stream tok =
              | Some BAR when config.i_strict_with = Always -> config.i_with
              | _ -> config.i_type
            in
-           let body, h, p =
+           let kind, h, p =
              match p with
              | ({kind = (KLet | KLetIn) as k; _} as h')::p' ->
                  (* [let type t += ...] is handled as [let type t =],
                     we treat anything after [=] as the body of the [let]. *)
-                 KBody k, h', p'
-             | _ -> KBody KType, h, p
+                 k, h', p'
+             | _ -> KType, h, p
            in
-           if starts_line then
-             let h = {h with indent = h.indent + indent; pad = 0} in
-             replace body L ~pad:0 (h :: p)
-           else
-             let h = {h with indent = h.column} in
-             replace body T ~pad:indent (h :: p)
+           replace_with_body ~kind ~indent h p
        | _ ->
            make_infix tok block.path)
   | COLONEQUAL ->
