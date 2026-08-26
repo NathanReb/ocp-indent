@@ -75,6 +75,29 @@ should be indented, with 'always' they should be aligned the begining of the
   | A
   | B
 
+It should also work when defining a type alias (atm, it doesnt):
+
+  $ cat > test.ml << EOF
+  > type s = t =
+  > | A
+  > | B
+  > EOF
+
+  $ ocp-indent --config strict_with=never test.ml
+  type s = t =
+    | A
+    | B
+
+  $ ocp-indent --config strict_with=auto test.ml
+  type s = t =
+    | A
+    | B
+
+  $ ocp-indent --config strict_with=always test.ml
+  type s = t =
+  | A
+  | B
+
 Same applies to extensible variant types:
 
   $ cat > test.ml << EOF
